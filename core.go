@@ -36,13 +36,14 @@ func NewApp() *App {
 		log.Fatal(err)
 	}
 
+	app.jiraClientFactory = NewJiraClientFactory()
+
 	// Create stateful entities
 	app.workbench = InitWorkbench()
-	app.issueSearcher = InitIssueSearcher()
+	app.issueSearcher = InitIssueSearcher(jiraClientFactory)
 	app.formatterConfig = &FormatterConfig{}
 
 	// Wire everything up
-	app.jiraClientFactory = NewJiraClientFactory()
 	app.menuService = NewMenuService(app.config)
 	app.issueFormatter = NewIssueFormatter(app.formatterConfig)
 	app.issueSelector = &IssueSelector{app.issueFormatter}

@@ -19,13 +19,28 @@ queries:
   "project foo": project = "FOO"
   "project bar": project = "BAR"
   "all":
+client:
+  url: ""
+  Keyfile: ""
+  certfile: ""
+  username: ""
+  passfile: ""
 `
 
 type Config struct {
 	// WOuld prefer to use the saved JQL queries for the user, but I
 	JQLs map[string]string `yaml:"queries"`
 	// Jira doesn't seem to keep a list of existing labels so I gotta add them via config
-	LabelsAllowed []Label `yaml:"labels"`
+	LabelsAllowed []Label          `yaml:"labels"`
+	Client        JiraClientConfig `yaml:"client"`
+}
+
+type JiraClientConfig struct {
+	Url      string `yaml:"url"`
+	Keyfile  string `yaml:"keyfile"`
+	Certfile string `yaml:"certfile"`
+	Username string `yaml:"username"`
+	Passfile string `yaml:"passfile"`
 }
 
 type ConfigLoader interface {

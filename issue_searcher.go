@@ -70,11 +70,16 @@ type IssueEnumerator interface {
 }
 
 type jiraIssueEnum struct {
-	*jira.Client
+	jiraClientFactory *JiraClientFactory
 }
 
 func (j *jiraIssueEnum) ForEachIssue(jql string, opts *jira.SearchOptions, each func(jira.Issue) error) error {
-	return j.Issue.SearchPages(jql, opts, each)
+	client, err := j.jiraClientFactory.GetClient()
+	if err != nil {
+		return err
+	}
+
+	return client.Issue.SearchPages(jql, opts, each)
 }
 
 type IssueSearcher interface {
@@ -196,20 +201,11 @@ func (is *mockIssueEnum) ForEachIssue(jql string, opts *jira.SearchOptions, each
 }
 
 // TODO: convert to real jira searcher
-func InitIssueSearcher() IssueSearcher {
-	issues := []jira.Issue{
-		makeFakeIssue("FOO", 100, "fix stuff"),
-		makeFakeIssue("FOO", 200, "stop breaking stuff"),
-		makeFakeIssue("FOO", 300, "stop"),
-		makeFakeIssue("BAR", 100, "fix stuff"),
-		makeFakeIssue("BAR", 200, "stop breaking stuff"),
-		makeFakeIssue("BAR", 300, "stop"),
-	}
-
+func InitIssueSearcher(jiraClientFactory *JiraClientFactory) IssueSearcher {
 	return &defaultIssueSearcher{
 		opts:       &jira.SearchOptions{},
 		jql:        "",
 		mutex:      sync.Mutex{},
-		enumerator: &mockIssueEnum{issues},
+		enumerator: &jiraIssueEnum{jiraClientFactory},
 	}
 }

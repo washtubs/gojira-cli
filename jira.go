@@ -1,19 +1,56 @@
 package cli
 
 import (
+	"crypto/tls"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
+	"os"
 
 	"github.com/andygrunwald/go-jira"
 	"github.com/manifoldco/promptui"
 	"github.com/pkg/errors"
 )
 
-type JiraClientFactory struct{}
+type JiraClientFactory struct {
+	config Config
+}
 
 func (j *JiraClientFactory) GetClient() (*jira.Client, error) {
-	// TODO
-	panic("not impl")
+	config := j.config.Client
+	crt, err := tls.LoadX509KeyPair(config.Certfile, config.Keyfile)
+	if err != nil {
+		log.Println("Error loading X509 pair for cert " + config.Certfile +
+			" and key file " + config.Keyfile)
+		return nil, err
+	}
+
+	passfile, err := os.Open(config.Passfile)
+	if err != nil {
+		log.Println("Failed to open " + config.Passfile)
+		return nil, err
+	}
+	defer passfile.Close()
+
+	bs, err := ioutil.ReadAll(passfile)
+	if err != nil {
+		return nil, err
+	}
+	password := string(bs)
+
+	tlsConfig := &tls.Config{
+		Certificates: []tls.Certificate{crt},
+	}
+	tr := &http.Transport{
+		TLSClientConfig: tlsConfig,
+	}
+	cl := &http.Client{
+		Transport: tr,
+	}
+	jcli, err := jira.NewClient(cl, config.Url)
+	jcli.Authentication.SetBasicAuth(config.Username, password)
+	return jcli, err
 }
 
 func NewJiraClientFactory() *JiraClientFactory {
