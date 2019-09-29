@@ -144,7 +144,7 @@ func MainMenuActions(svc WorkbenchService, menuService *MenuService, w *Workbenc
 }
 
 func RunWorkbench() {
-	SetupRpc()
+	//SetupRpc()
 
 	app := NewApp()
 
