@@ -3,8 +3,8 @@ package cli
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -21,42 +21,20 @@ type SelectOptions struct {
 	One    bool
 }
 
-type CandidatesGenerater interface {
-	Next() (Formatter, bool)
-}
-
-type SliceCandidatesGenerater struct {
-	candidates []Formatter
-	ptr        int
-}
-
-func (s *SliceCandidatesGenerater) Next() (Formatter, bool) {
-	if s.ptr >= len(s.candidates) {
-		return nil, false
+func formatterSliceToChan(formatters []Formatter) chan Formatter {
+	channel := make(chan Formatter, len(formatters))
+	for _, f := range formatters {
+		channel <- f
 	}
-	f := s.candidates[s.ptr]
-	s.ptr = s.ptr + 1
-	return f, true
+	close(channel)
+	return channel
 }
 
-type ChannelCandidatesGenerator struct {
-	channel <-chan Formatter
+func FzfSelect(candidates []Formatter, opts SelectOptions, rpcPort int) ([]int, bool, error) {
+	return FzfSelectChan(formatterSliceToChan(candidates), opts, rpcPort)
 }
 
-func (c *ChannelCandidatesGenerator) Next() (Formatter, bool) {
-	f, more := <-c.channel
-	return f, more
-}
-
-func FzfSelect(candidates []Formatter, opts SelectOptions) ([]int, bool, error) {
-	return FzfSelectWithGenerator(&SliceCandidatesGenerater{candidates, 0}, opts)
-}
-
-func FzfSelectChan(c <-chan Formatter, opts SelectOptions) ([]int, bool, error) {
-	return FzfSelectWithGenerator(&ChannelCandidatesGenerator{c}, opts)
-}
-
-func FzfSelectWithGenerator(candidates CandidatesGenerater, opts SelectOptions) ([]int, bool, error) {
+func FzfSelectChan(c <-chan Formatter, opts SelectOptions, rpcPort int) ([]int, bool, error) {
 	args := []string{
 		"--with-nth", "2..",
 	}
@@ -66,56 +44,60 @@ func FzfSelectWithGenerator(candidates CandidatesGenerater, opts SelectOptions) 
 	if opts.Prompt != "" {
 		args = append(args, "--prompt="+opts.Prompt)
 	}
+
 	cmd := exec.Command("fzf-tmux", args...) // TODO figure out why I have to use fzf-tmux instead of fzf
 
+	if rpcPort != 0 {
+		// RPC supported
+		cmd.Env = os.Environ()
+		cmd.Env = append(cmd.Env, rpcReplyAddrEnv+"=localhost:"+strconv.Itoa(rpcPort))
+		// TODO setup actions / keybindings
+	}
+
 	// Collect all output in a buffer
-	var stdout *bytes.Buffer
-	//cmd.Stdout = &stdout
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
 
 	buf := bytes.NewBuffer([]byte{})
 	inR, inW := io.Pipe()
 	cmd.Stdin = inR
 
-	outPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		panic(err)
-	}
-
-	err = cmd.Start()
+	err := cmd.Start()
 	if err != nil {
 		return nil, false, errors.Wrap(err, "error starting command")
 	}
 
+	cancel := make(chan bool, 1)
 	go func() {
 		line := 0
 		for {
-			formatter, found := candidates.Next()
-			if !found {
+			select {
+			case formatter, more := <-c:
+				if !more {
+					log.Println("closed formatters")
+					inW.Close()
+					return
+				}
+				buf.WriteString(strconv.Itoa(line) + " " + formatter.Format() + "\n")
+				buf.WriteTo(inW)
+				line = line + 1
+			case <-cancel:
 				inW.Close()
-				break
+				return
 			}
-			buf.WriteString(strconv.Itoa(line) + " " + formatter.Format() + "\n")
-			buf.WriteTo(inW)
-			line = line + 1
 		}
 	}()
 
-	go func() {
-		out, err := ioutil.ReadAll(outPipe)
-		if err != nil {
-			log.Println(err)
-			return
-		}
-
-		stdout = bytes.NewBuffer(out)
-		log.Println("output complete")
-	}()
 	err = cmd.Wait()
-	log.Println("command complete")
+	log.Println("cancelling")
+	cancel <- true
+
+	log.Println("a")
 	if err != nil {
 		return nil, true, nil
 	}
 
+	log.Println("b")
 	// convert full string results into indexes
 	results := strings.Split(stdout.String(), "\n")
 	indexes := make([]int, 0, len(results))
@@ -131,5 +113,6 @@ func FzfSelectWithGenerator(candidates CandidatesGenerater, opts SelectOptions) 
 		indexes = append(indexes, idx)
 	}
 
+	log.Println("c")
 	return indexes, false, nil
 }

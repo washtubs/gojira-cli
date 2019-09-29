@@ -55,8 +55,15 @@ func (s *IssueSelector) SelectSlc(issues []jira.Issue, opts SelectOptions) ([]in
 	return s.Select(issueChan, &fixedSearchInteractor{issues}, opts)
 }
 
-func (s *IssueSelector) Select(issues <-chan jira.Issue, interacter SearchInteractor, opts SelectOptions) ([]int, bool, error) {
-	idxs, canceled, err := FzfSelectChan(mapIssueChan(issues, s.formatter), opts)
+func (s *IssueSelector) Select(issues <-chan jira.Issue, interactor SearchInteractor, opts SelectOptions) ([]int, bool, error) {
+	port, err := ListenRpc(interactor)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "Failed to start listening to RPC")
+	}
+	defer StopListenRpc(port)
+
+	idxs, canceled, err := FzfSelectChan(mapIssueChan(issues, s.formatter), opts, port)
+	log.Println("done select")
 	if err != nil {
 		return nil, false, errors.Wrap(err, "Failed to get FZF results for issue selection")
 	}

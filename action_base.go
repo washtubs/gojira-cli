@@ -74,7 +74,7 @@ func (a AddLabelAction) Build(svc *ActionBaseService) (IssueActionBase, error) {
 	idxs, cancelled, err := FzfSelect(formatters, SelectOptions{
 		Prompt: "Please select a label to add",
 		One:    true,
-	})
+	}, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (s *ActionBaseService) SelectAction(actionBases map[int]IssueActionBase) (i
 	idxs, cancelled, err := FzfSelect(actionBasesSlc, SelectOptions{
 		Prompt: "Please select an action",
 		One:    true,
-	})
+	}, 0)
 	if err != nil {
 		return 0, err
 	}
@@ -148,7 +148,7 @@ func (s *ActionBaseService) BuildAction() (IssueActionBase, error) {
 	idxs, cancelled, err := FzfSelect(actionTypeItems, SelectOptions{
 		Prompt: "Please select an action type",
 		One:    true,
-	})
+	}, 0)
 	if err != nil {
 		return nil, err
 	}
