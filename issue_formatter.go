@@ -128,13 +128,18 @@ func (f *defaultIssueFormatter) Format(issue jira.Issue) string {
 }
 
 func PrintIssue(issue jira.Issue) string {
-	return fmt.Sprintf(`%s - %s
+	status := ""
+	if issue.Fields.Status != nil {
+		status = issue.Fields.Status.Name
+	}
+	return fmt.Sprintf(`%s: %s
 Description: %s
-Status: %s`,
+Status: %s
+`,
 		issue.ID,
 		issue.Fields.Summary,
 		issue.Fields.Description,
-		issue.Fields.Status.Name,
+		status,
 	)
 }
 

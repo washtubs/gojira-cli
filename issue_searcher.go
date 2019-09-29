@@ -161,6 +161,9 @@ func makeFakeIssue(project string, id int, summary string) jira.Issue {
 	issue.Fields = &jira.IssueFields{}
 	issue.ID = project + "-" + strconv.Itoa(id)
 	issue.Fields.Summary = summary
+	issue.Fields.Status = &jira.Status{
+		Name: "In Progress",
+	}
 	return issue
 }
 
@@ -171,13 +174,15 @@ type mockIssueEnum struct {
 func (is *mockIssueEnum) ForEachIssue(jql string, opts *jira.SearchOptions, each func(jira.Issue) error) error {
 	issues := make([]jira.Issue, 0)
 	for _, v := range is.issues {
-		if jql == "FOO" && strings.Index(v.ID, "FOO") == 0 {
-			issues = append(issues, v)
-		}
-		if jql == "BAR" && strings.Index(v.ID, "BAR") == 0 {
-			issues = append(issues, v)
-		}
-		if jql == "ALL" {
+		if strings.Index(jql, "FOO") >= 0 {
+			if strings.Index(v.ID, "FOO") == 0 {
+				issues = append(issues, v)
+			}
+		} else if strings.Index(jql, "BAR") >= 0 {
+			if strings.Index(v.ID, "BAR") == 0 {
+				issues = append(issues, v)
+			}
+		} else {
 			issues = append(issues, v)
 		}
 	}

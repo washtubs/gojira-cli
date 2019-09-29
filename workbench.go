@@ -141,6 +141,12 @@ func (w *Workbench) RemoveSelected() {
 
 }
 
+func (w *Workbench) SelectAll() {
+	w.ClearSelection()
+	for _, issue := range w.working {
+		w.selection[issue.ID] = true
+	}
+}
 func (w *Workbench) Select(workingIdxs []int) {
 	w.ClearSelection()
 	for _, idx := range workingIdxs {

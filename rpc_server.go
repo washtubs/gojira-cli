@@ -26,7 +26,7 @@ type FzfReceiver struct {
 type Noop struct{}
 
 type StringResp struct {
-	s string
+	String string
 }
 
 func (f *FzfReceiver) LoadResults(req Noop, resp *Noop) error {
@@ -48,7 +48,7 @@ func (f *FzfReceiver) PrintIssue(issueId string, resp *StringResp) error {
 	found := false
 	for _, issue := range f.h.Loaded() {
 		if issue.ID == issueId {
-			resp.s = PrintIssue(issue)
+			resp.String = PrintIssue(issue)
 			found = true
 			break
 		}

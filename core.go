@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"log"
 	"os"
 )
 
@@ -29,7 +30,11 @@ func NewApp() *App {
 	app := &App{}
 
 	// Load the config
-	app.config = NewConfigLoader().LoadConfig()
+	var err error
+	app.config, err = NewConfigLoader().LoadConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	// Create stateful entities
 	app.workbench = InitWorkbench()
@@ -168,9 +173,9 @@ func RunWorkbench() {
 		fmt.Println("-----------------------------")
 
 		// No issues. Must search
-		if len(workbench.working)+len(workbench.assigned) == 0 {
-			workbenchService.AddIssuesInteractive(workbench)
-		}
+		//if len(workbench.working)+len(workbench.assigned) == 0 {
+		//workbenchService.AddIssuesInteractive(workbench)
+		//}
 
 		fmt.Println(workbench.Format())
 

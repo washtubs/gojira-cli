@@ -47,7 +47,6 @@ func (s *defaultWorkbenchService) FilterInteractive(w *Workbench) error {
 		if err != nil {
 			return err
 		}
-
 	}
 
 	w.RemoveSelected()
@@ -88,31 +87,42 @@ func (s *defaultWorkbenchService) SelectInteractive(w *Workbench) error {
 
 func (s *defaultWorkbenchService) AssignInteractive(w *Workbench) error {
 
-	// Make sure we have an action to assign to
-	clearAction := false
-	if w.actionId == 0 {
-		clearAction = true
-		err := s.SelectActionInteractive(w)
+	// If there is no selection or working create one to be cleared out at the end
+	clearSelection := false
+	if len(w.working) == 0 {
+		clearSelection = true
+		err := s.AddIssuesInteractive(w)
 		if err != nil {
 			return err
 		}
+		if len(w.working) == 0 { // still none? just return
+			return nil
+		}
+		w.SelectAll()
 	}
 
-	// If there is no selection create one to be cleared out at the end
-	clearSelection := false
 	if len(w.selection) == 0 {
 		clearSelection = true
 
 		var actionDesc string
 		actionBase, prs := w.actionBases[w.actionId]
 		if prs {
-			// TODO use description
 			actionDesc = WrapFormatter(actionBase).Format()
 		} else {
 			actionDesc = "an action"
 		}
 
-		err := s.doSelect(w, "Select issues to assign to "+actionDesc)
+		err := s.doSelect(w, "Select issues for "+actionDesc)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Make sure we have an action to assign to
+	clearAction := false
+	if w.actionId == 0 {
+		clearAction = true
+		err := s.SelectActionInteractive(w)
 		if err != nil {
 			return err
 		}

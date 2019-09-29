@@ -1,29 +1,90 @@
 package cli
 
+import (
+	"bytes"
+	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+
+	"github.com/adrg/xdg"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v2"
+)
+
+const defaultConfigContents string = `labels:
+  - sample label 1
+  - sample label 2
+queries:
+  "project foo": project = "FOO"
+  "project bar": project = "BAR"
+  "all":
+`
+
 type Config struct {
-	// Jira doesn't seem to keep a list of existing labels so I gotta add them via config
-	LabelsAllowed []Label
 	// WOuld prefer to use the saved JQL queries for the user, but I
-	JQLs map[string]string
+	JQLs map[string]string `yaml:"queries"`
+	// Jira doesn't seem to keep a list of existing labels so I gotta add them via config
+	LabelsAllowed []Label `yaml:"labels"`
 }
 
 type ConfigLoader interface {
-	LoadConfig() *Config
+	LoadConfig() (*Config, error)
 }
 
-type stubConfigLoader struct{}
+type defaultConfigLoader struct{}
 
-func (cl stubConfigLoader) LoadConfig() *Config {
-	return &Config{
-		[]Label{Label("fooLabel"), Label("barLabel"), Label("bazLabel")},
-		map[string]string{
-			"foo": "FOO",
-			"bar": "BAR",
-			"all": "ALL",
-		},
+func (cl defaultConfigLoader) LoadConfig() (*Config, error) {
+	xdgConfig := "gojira-cli/config.yml"
+	filePath, err := xdg.SearchConfigFile(xdgConfig)
+	if err != nil {
+		fmt.Println("No config file. Adding one.")
+		filePath, err = xdg.ConfigFile(xdgConfig)
+		if err != nil {
+			return nil, err
+		}
+
+		f, err := os.Create(filePath)
+		if err != nil {
+			return nil, errors.Wrapf(err, "Error creating %s", filePath)
+		}
+		defer f.Close()
+		f.WriteString(defaultConfigContents)
+		f.Close()
 	}
+
+	f, err := os.Open(filePath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	bs, err := ioutil.ReadAll(f)
+	if err != nil {
+		return nil, err
+	}
+
+	config := new(Config)
+	decoder := yaml.NewDecoder(bytes.NewReader(bs))
+	err = decoder.Decode(config)
+	if err != nil {
+		return config, err // return incomplete object as well
+	}
+
+	log.Printf("config=%+v", config)
+
+	return config, nil
 }
 
 func NewConfigLoader() ConfigLoader {
-	return stubConfigLoader{}
+	return defaultConfigLoader{}
 }
+
+//type JQLConfig struct {
+//Name string `yaml:"name"`
+//JQL  string `yaml:"jql"`
+//}
+
+//type JiraConfig struct {
+//Queries []JQLConfig `yaml:"queries"`
+//Labels  []string    `yaml:"labels"`
+//}

@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/exec"
@@ -36,7 +37,7 @@ func FzfSelect(candidates []Formatter, opts SelectOptions, rpcPort int) ([]int, 
 
 func FzfSelectChan(c <-chan Formatter, opts SelectOptions, rpcPort int) ([]int, bool, error) {
 	args := []string{
-		"--with-nth", "2..",
+		"--with-nth", "2..", "--reverse",
 	}
 	if opts.One {
 		args = append(args, "+m")
@@ -45,24 +46,30 @@ func FzfSelectChan(c <-chan Formatter, opts SelectOptions, rpcPort int) ([]int, 
 		args = append(args, "--prompt="+opts.Prompt)
 	}
 
+	if rpcPort != 0 { // RPC supported
+		args = append(args, "--preview", "gojira-cli _rpc print {}")
+		args = append(args, "--bind", "f1:execute(gojira-cli _rpc load)")
+	}
+
 	cmd := exec.Command("fzf-tmux", args...) // TODO figure out why I have to use fzf-tmux instead of fzf
 
-	if rpcPort != 0 {
-		// RPC supported
+	if rpcPort != 0 { // RPC supported
 		cmd.Env = os.Environ()
 		cmd.Env = append(cmd.Env, rpcReplyAddrEnv+"=localhost:"+strconv.Itoa(rpcPort))
-		// TODO setup actions / keybindings
 	}
 
 	// Collect all output in a buffer
-	var stdout bytes.Buffer
-	cmd.Stdout = &stdout
+	var stdout *bytes.Buffer
+	outPipe, err := cmd.StdoutPipe()
+	if err != nil {
+		panic(err)
+	}
 
 	buf := bytes.NewBuffer([]byte{})
 	inR, inW := io.Pipe()
 	cmd.Stdin = inR
 
-	err := cmd.Start()
+	err = cmd.Start()
 	if err != nil {
 		return nil, false, errors.Wrap(err, "error starting command")
 	}
@@ -88,16 +95,28 @@ func FzfSelectChan(c <-chan Formatter, opts SelectOptions, rpcPort int) ([]int, 
 		}
 	}()
 
-	err = cmd.Wait()
-	log.Println("cancelling")
-	cancel <- true
+	go func() {
 
-	log.Println("a")
+		// When Fzf closes stdout,
+		// we need to cancel the formatters stream,
+		// and close stdin,
+		// so Wait() will finish
+		out, err := ioutil.ReadAll(outPipe)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		stdout = bytes.NewBuffer(out)
+		cancel <- true
+	}()
+
+	err = cmd.Wait()
+
 	if err != nil {
 		return nil, true, nil
 	}
 
-	log.Println("b")
 	// convert full string results into indexes
 	results := strings.Split(stdout.String(), "\n")
 	indexes := make([]int, 0, len(results))
@@ -113,6 +132,5 @@ func FzfSelectChan(c <-chan Formatter, opts SelectOptions, rpcPort int) ([]int, 
 		indexes = append(indexes, idx)
 	}
 
-	log.Println("c")
 	return indexes, false, nil
 }

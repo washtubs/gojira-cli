@@ -26,7 +26,7 @@ func (c *RpcClient) PrintIssue(issueId string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Print(resp.s)
+	fmt.Print(resp.String)
 }
 
 func NewRpcClient() *RpcClient {

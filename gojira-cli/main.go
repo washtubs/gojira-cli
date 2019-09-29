@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"log"
+	"strings"
 
 	cli "github.com/washtubs/gojira-cli"
 )
@@ -16,7 +17,12 @@ func main() {
 		case "load":
 			c.LoadResults()
 		case "print":
-			issueId := flag.Arg(2)
+			fzfRecord := flag.Arg(2)
+			fields := strings.Fields(fzfRecord)
+			if len(fields) < 2 {
+				log.Fatal("Expecting issueId as the second field. Not enough fields")
+			}
+			issueId := fields[1]
 			if issueId == "" {
 				log.Fatal("Must provide an issueId")
 			}
