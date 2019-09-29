@@ -1,0 +1,52 @@
+Do arbitrary ACTIONs with issues from a jql queury via
+    interactive FZF
+        single select
+        multi select
+    non-interactive w/ confirm
+
+ACTIONS
+    Adding a label
+    Removing a label (when adding fucks up)
+
+    Set status
+    Add a comment
+    Log work
+    Open in tab
+    Change time estimated
+    Relate tickets
+    Set fix version
+    Add to sprint
+
+SAFETY MECHANISM
+    All state modifying actions should be completely mediated by the safety mechanism
+    Should limit actions to 10 (configurable) issues at a time
+
+USE CASES
+    Be able to log work for the review ticket (with a manual command)
+
+    Open all tickets in tabs w/ WIP label in new tab
+    Zero out remaining time for completed tickets in the sprint
+    Label tickets in a batch (using existing labels)
+    Relating issues
+        Blocked by
+        Related to
+
+    activetask
+        Open (w/ fix ver) and mark a task in-progress and add it to sprint if needed
+        Be able to log work for my own tickets (in tandem w/ activetask)
+        Complete a ticket - single command to run after a ticket is merged
+        Mark a ticket in review - single command - sets status, and adds a comment
+
+
+SELF IMPROVEMENT
+
+    Find tickets easily and have better awareness
+    Be good at finding duplicate tickets
+
+    ONCE A DAY TASK
+        Look at new tickets
+        Groom tickets w/ WIP label
+
+USE CASES - bitbucket
+    List open PRs I'm assigned to by oldest push first
+    Get a PR link from ticket
