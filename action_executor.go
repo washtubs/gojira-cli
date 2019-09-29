@@ -18,7 +18,11 @@ func (e *ExecutorService) Execute(actions []IssueAction, dryRun bool) []error {
 
 	var client *jira.Client
 	if !dryRun {
-		client = e.jiraClientFactory.GetClient()
+		var err error
+		client, err = e.jiraClientFactory.GetClient()
+		if err != nil {
+			panic("Failed to get jira client: " + err.Error())
+		}
 	}
 
 	for i, issueAction := range actions {

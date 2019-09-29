@@ -51,7 +51,7 @@ func NewApp() *App {
 	app.actionBaseService = NewActionBaseService(app.config, app.menuService, app.issueSearchService)
 	app.workbenchService = NewWorkbenchService(app.issueSelector, app.issueSearchService, app.actionBaseService, app.executorService)
 
-	mainMenuActions = MainMenuActions(app.workbenchService, app.menuService, app.workbench)
+	mainMenuActions = MainMenuActions(app, app.workbenchService, app.menuService, app.workbench)
 
 	mainMenuActionLabels := make([]string, len(mainMenuActions))
 	for i, action := range mainMenuActions {
@@ -59,6 +59,8 @@ func NewApp() *App {
 	}
 	app.menuService.RegisterMainMenu(mainMenuActionLabels)
 	app.menuService.RegisterFormatterMenu(&FormatterMenu{app.formatterConfig, 0})
+	app.menuService.RegisterIssueSearchMenu(app)
+	app.menuService.RegisterIssueLinkTypeMenu(app)
 
 	return app
 }
@@ -87,7 +89,7 @@ type MenuAction struct {
 	label  string
 }
 
-func MainMenuActions(svc WorkbenchService, menuService *MenuService, w *Workbench) []*MenuAction {
+func MainMenuActions(app *App, svc WorkbenchService, menuService *MenuService, w *Workbench) []*MenuAction {
 	return []*MenuAction{
 		&MenuAction{
 			action: func() error { os.Exit(0); return nil },
@@ -100,6 +102,13 @@ func MainMenuActions(svc WorkbenchService, menuService *MenuService, w *Workbenc
 		&MenuAction{
 			action: func() error { return nil },
 			label:  "Print",
+		},
+		&MenuAction{
+			action: func() error {
+				app.menuService.Comment("hi")
+				return nil
+			},
+			label: "Debug",
 		},
 		&MenuAction{
 			action: func() error { return svc.AddIssuesInteractive(w) },

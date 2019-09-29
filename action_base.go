@@ -2,6 +2,7 @@ package cli
 
 import (
 	"github.com/andygrunwald/go-jira"
+	"github.com/pkg/errors"
 )
 
 type IssueActionBase interface {
@@ -39,6 +40,8 @@ func (a BaseAction) IsBuilt() bool { return a.built }
 
 // Start action definitions
 
+// Add comment
+
 type AddCommentAction struct {
 	ActionType
 	BaseAction
@@ -46,15 +49,30 @@ type AddCommentAction struct {
 }
 
 func (a AddCommentAction) Execute(issue jira.Issue, client *jira.Client) error {
-	panic("not impl")
+	_, resp, err := client.Issue.AddComment(issue.ID, &jira.Comment{Body: a.Comment})
+	LogHttpResponse(resp)
+	return err
 }
+
 func (a AddCommentAction) Build(svc *ActionBaseService) (IssueActionBase, error) {
-	panic("not impl")
+	a.Comment = svc.menuService.Comment("Leave a comment")
+	if a.Comment == "" {
+		return nil, errors.New("Comment can not be empty")
+	}
+	return AddCommentAction{
+		a.ActionType,
+		BaseAction{true},
+		a.Comment,
+	}, nil
 }
+
 func (a AddCommentAction) BuildParams(params []string) (IssueActionBase, error) {
 	panic("not impl")
 }
+
 func (a AddCommentAction) ToParams() []string { return []string{a.Comment} }
+
+// Add label
 
 type AddLabelAction struct {
 	ActionType
@@ -97,6 +115,112 @@ func (a AddLabelAction) BuildParams(params []string) (IssueActionBase, error) {
 
 func (a AddLabelAction) ToParams() []string { return []string{string(a.Label)} }
 
+// Relate one
+
+type RelateOneAction struct {
+	ActionType
+	BaseAction
+	SubjectIssue    jira.Issue
+	IssueLinkType   jira.IssueLinkType
+	SubjectIsInward bool
+	Comment         string
+}
+
+func (a RelateOneAction) Execute(objectIssue jira.Issue, client *jira.Client) error {
+	var (
+		outwardIssue jira.Issue
+		inwardIssue  jira.Issue
+	)
+	if a.SubjectIsInward {
+		inwardIssue = a.SubjectIssue
+		outwardIssue = objectIssue
+	} else {
+		inwardIssue = objectIssue
+		outwardIssue = a.SubjectIssue
+	}
+	resp, err := client.Issue.AddLink(&jira.IssueLink{
+		ID:           "",
+		Self:         "",
+		Type:         a.IssueLinkType,
+		OutwardIssue: &outwardIssue,
+		InwardIssue:  &inwardIssue,
+		Comment:      &jira.Comment{Body: a.Comment},
+	})
+	LogHttpResponse(resp)
+	return err
+}
+
+func (a RelateOneAction) Build(svc *ActionBaseService) (IssueActionBase, error) {
+	err := svc.menuService.issueSearchMenu.Select()
+	if err != nil {
+		return nil, err
+	}
+
+	subjectIssue, err := svc.menuService.issueSearchMenu.Search("Select an issue as a starting point")
+	if err != nil {
+		return nil, err
+	}
+
+	err = svc.menuService.issueLinkTypeMenu.Select(subjectIssue.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	comment := svc.menuService.Comment("Leave a comment (optional)")
+
+	issueLinkType, subjectIsInward := svc.menuService.issueLinkTypeMenu.IssueLinkType()
+
+	return RelateOneAction{
+		a.ActionType,
+		BaseAction{true},
+		subjectIssue,
+		issueLinkType,
+		subjectIsInward,
+		comment,
+	}, nil
+}
+
+func (a RelateOneAction) BuildParams(params []string) (IssueActionBase, error) {
+	panic("not impl")
+}
+
+func (a RelateOneAction) ToParams() []string {
+	subjectIsInward := "false"
+	if a.SubjectIsInward {
+		subjectIsInward = "true"
+	}
+	return []string{a.SubjectIssue.ID, a.IssueLinkType.Name, subjectIsInward, a.Comment}
+}
+
+// Navigate action
+
+type NavigateAction struct {
+	ActionType
+	BaseAction
+}
+
+func (a NavigateAction) Execute(issue jira.Issue, client *jira.Client) error {
+	url := client.GetBaseURL()
+	openbrowser(url.String() + "/" + issue.ID)
+	return nil
+}
+
+func (a NavigateAction) Build(svc *ActionBaseService) (IssueActionBase, error) {
+	return NavigateAction{
+		a.ActionType,
+		BaseAction{true},
+	}, nil
+}
+
+func (a NavigateAction) BuildParams(params []string) (IssueActionBase, error) {
+	return NavigateAction{
+		a.ActionType,
+		BaseAction{true},
+	}, nil
+}
+
+func (a NavigateAction) ToParams() []string { return []string{} }
+
 // End action definitions
 
 var actions = []IssueActionBase{
@@ -105,6 +229,12 @@ var actions = []IssueActionBase{
 	},
 	AddLabelAction{
 		ActionType: ActionType{"addLabel", "Add label", "Add label '{{.Label}}' to _ISSUE"},
+	},
+	RelateOneAction{
+		ActionType: ActionType{"relateOne", "Link issue", "Add link: {{.SubjectIssue.ID}}{{if .SubjectIsInward}} {{.IssueLinkType.Inward}} {{else}} {{.IssueLinkType.Outward}} {{end}}_ISSUE"},
+	},
+	NavigateAction{
+		ActionType: ActionType{"navigate", "Open in browser", "Open _ISSUE in browser"},
 	},
 }
 

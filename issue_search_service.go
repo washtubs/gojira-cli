@@ -4,6 +4,8 @@ import (
 	"log"
 
 	"github.com/andygrunwald/go-jira"
+	"github.com/manifoldco/promptui"
+	"github.com/pkg/errors"
 )
 
 type IssueSearchService struct {
@@ -57,4 +59,63 @@ func NewIssueSearchService(
 		menuService,
 		selector,
 	}
+}
+
+type IssueSearchMenu struct {
+	workbench           *Workbench
+	issueSelector       *IssueSelector
+	issueSearchService  *IssueSearchService
+	workbenchElseGlobal bool
+	cursor              int
+}
+
+func (m *IssueSearchMenu) Select() error {
+	p := promptui.Select{
+		Label: "Choose an issue source",
+		Items: []string{"Workbench", "Global search"},
+		Size:  10,
+	}
+	cursor, _, err := p.RunCursorAt(m.cursor, 0)
+	if err != nil {
+		log.Printf("Error making selection: ", err)
+		return err
+	}
+
+	m.cursor = cursor
+	m.workbenchElseGlobal = m.cursor == 0
+	return nil
+
+}
+
+func (m *IssueSearchMenu) Search(prompt string) (jira.Issue, error) {
+	opts := SelectOptions{
+		Prompt: prompt,
+		One:    true,
+	}
+	var (
+		selected []jira.Issue
+		err      error
+	)
+	if m.workbenchElseGlobal {
+		var (
+			selectedIdxs []int
+			canceled     bool
+		)
+		selectedIdxs, canceled, err = m.issueSelector.SelectSlc(m.workbench.working, opts)
+		if canceled {
+			err = CancelError()
+		}
+		selected = make([]jira.Issue, len(selectedIdxs))
+		for i, idx := range selectedIdxs {
+			selected[i] = m.workbench.working[idx]
+		}
+	} else {
+		selected, err = m.issueSearchService.SearchInteractive(opts)
+	}
+
+	if len(selected) != 1 {
+		return jira.Issue{}, errors.New("Expected exactly 1 issue")
+	}
+
+	return selected[0], err
 }

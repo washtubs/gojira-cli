@@ -24,15 +24,28 @@ func (m *StaticMenu) Select() error {
 		log.Printf("Error making selection: ", err)
 	}
 	return err
-
 }
 
 // Basically mediates access to the simple promts using promptui
 type MenuService struct {
-	config        *Config
-	jqlMenu       *StaticMenu
-	mainMenu      *StaticMenu
-	formatterMenu *FormatterMenu
+	config            *Config
+	jqlMenu           *StaticMenu
+	mainMenu          *StaticMenu
+	formatterMenu     *FormatterMenu
+	issueSearchMenu   *IssueSearchMenu
+	issueLinkTypeMenu *IssueLinkTypeMenu
+}
+
+func (s *MenuService) Comment(prompt string) string {
+	p := promptui.Prompt{
+		Label: prompt,
+	}
+	comment, err := p.Run()
+	if err != nil {
+		log.Println("Got error: " + err.Error())
+	}
+
+	return comment
 }
 
 // Interactively select a JQL key
@@ -60,6 +73,24 @@ func (s *MenuService) RegisterMainMenu(mainMenuActions []string) {
 
 func (s *MenuService) RegisterFormatterMenu(formatterMenu *FormatterMenu) {
 	s.formatterMenu = formatterMenu
+}
+
+func (s *MenuService) RegisterIssueLinkTypeMenu(app *App) {
+	s.issueLinkTypeMenu = &IssueLinkTypeMenu{
+		jiraClientFactory: app.jiraClientFactory,
+		issueLinkTypes:    nil,
+		cursor:            0,
+	}
+}
+
+func (s *MenuService) RegisterIssueSearchMenu(app *App) {
+	s.issueSearchMenu = &IssueSearchMenu{
+		workbench:           app.workbench,
+		issueSelector:       app.issueSelector,
+		issueSearchService:  app.issueSearchService,
+		workbenchElseGlobal: false,
+		cursor:              0,
+	}
 }
 
 func NewMenuService(
