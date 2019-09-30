@@ -21,7 +21,7 @@ queries:
   "all":
 client:
   url: ""
-  Keyfile: ""
+  keyfile: ""
   certfile: ""
   username: ""
   passfile: ""
