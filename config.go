@@ -27,12 +27,17 @@ client:
   passfile: ""
 `
 
+type FavoritesConfig struct {
+	Users []string `yaml:"users"`
+}
+
 type Config struct {
 	// WOuld prefer to use the saved JQL queries for the user, but I
 	JQLs map[string]string `yaml:"queries"`
 	// Jira doesn't seem to keep a list of existing labels so I gotta add them via config
 	LabelsAllowed []Label          `yaml:"labels"`
 	Client        JiraClientConfig `yaml:"client"`
+	Favorites     *FavoritesConfig `yaml:"favorites"`
 }
 
 type JiraClientConfig struct {

@@ -115,6 +115,40 @@ func (a AddLabelAction) BuildParams(params []string) (IssueActionBase, error) {
 
 func (a AddLabelAction) ToParams() []string { return []string{string(a.Label)} }
 
+// Add label
+
+type AssignUserAction struct {
+	ActionType
+	BaseAction
+	UserName string
+}
+
+func (a AssignUserAction) Execute(issue jira.Issue, client *jira.Client) error {
+	resp, err := client.Issue.UpdateAssignee(issue.ID, &jira.User{Name: a.UserName})
+	LogHttpResponse(resp)
+	return err
+}
+
+func (a AssignUserAction) Build(svc *ActionBaseService) (IssueActionBase, error) {
+	err := svc.menuService.userFavoritesMenu.Select("Select a user to assign")
+	if err != nil {
+		return nil, err
+	}
+	a.UserName = svc.menuService.userFavoritesMenu.SelectedUser()
+
+	return AssignUserAction{
+		a.ActionType,
+		BaseAction{true},
+		a.UserName,
+	}, nil
+}
+
+func (a AssignUserAction) BuildParams(params []string) (IssueActionBase, error) {
+	panic("not impl")
+}
+
+func (a AssignUserAction) ToParams() []string { return []string{string(a.UserName)} }
+
 // Relate one
 
 type RelateOneAction struct {
@@ -229,6 +263,9 @@ var actions = []IssueActionBase{
 	},
 	AddLabelAction{
 		ActionType: ActionType{"addLabel", "Add label", "Add label '{{.Label}}' to _ISSUE"},
+	},
+	AssignUserAction{
+		ActionType: ActionType{"assignUser", "Assign user", "Assign '{{.UserName}}' to _ISSUE"},
 	},
 	RelateOneAction{
 		ActionType: ActionType{"relateOne", "Link issue", "Add link: {{.SubjectIssue.ID}}{{if .SubjectIsInward}} {{.IssueLinkType.Inward}} {{else}} {{.IssueLinkType.Outward}} {{end}}_ISSUE"},

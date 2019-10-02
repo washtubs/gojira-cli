@@ -13,6 +13,12 @@ import (
 	"github.com/pkg/errors"
 )
 
+type StringFormatter string
+
+func (s StringFormatter) Format() string {
+	return string(s)
+}
+
 // courtesy of : https://gist.github.com/hyg/9c4afcd91fe24316cbf0
 func openbrowser(url string) {
 	var err error
