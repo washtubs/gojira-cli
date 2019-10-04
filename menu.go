@@ -34,6 +34,7 @@ type MenuService struct {
 	formatterMenu     *FormatterMenu
 	issueSearchMenu   *IssueSearchMenu
 	issueLinkTypeMenu *IssueLinkTypeMenu
+	userFavoritesMenu *UsersFavoritesMenu
 }
 
 func (s *MenuService) Comment(prompt string) string {
@@ -90,6 +91,12 @@ func (s *MenuService) RegisterIssueSearchMenu(app *App) {
 		issueSearchService:  app.issueSearchService,
 		workbenchElseGlobal: false,
 		cursor:              0,
+	}
+}
+
+func (s *MenuService) RegisterUserFavoritesMenu(app *App) {
+	s.userFavoritesMenu = &UsersFavoritesMenu{
+		favorites: app.favoritesService,
 	}
 }
 

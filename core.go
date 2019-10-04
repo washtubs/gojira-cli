@@ -17,6 +17,7 @@ type App struct {
 	formatterConfig *FormatterConfig
 
 	jiraClientFactory  *JiraClientFactory
+	favoritesService   *FavoritesService
 	menuService        *MenuService
 	issueFormatter     IssueFormatter
 	issueSelector      *IssueSelector
@@ -45,6 +46,7 @@ func NewApp() *App {
 
 	// Wire everything up
 	app.menuService = NewMenuService(app.config)
+	app.favoritesService = NewFavoritesService(app.config.Favorites, app.jiraClientFactory)
 	app.issueFormatter = NewIssueFormatter(app.formatterConfig)
 	app.issueSelector = &IssueSelector{app.issueFormatter}
 	app.issueSearchService = NewIssueSearchService(app.issueSearcher, app.menuService, app.issueSelector)
@@ -104,7 +106,7 @@ func MainMenuActions(app *App, svc WorkbenchService, menuService *MenuService, w
 			action: func() error { return nil },
 			label:  "Print",
 		},
-		&MenuAction{
+		&MenuAction{ // TODO hide unless in debug mode
 			action: func() error {
 				return nil
 			},
