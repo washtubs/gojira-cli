@@ -108,7 +108,10 @@ func (f *defaultIssueFormatter) ExtractTicketId(formatted string) string {
 }
 
 func (f *defaultIssueFormatter) Format(issue jira.Issue) string {
-	out := issue.ID + " -"
+
+	out := issue.ID
+
+	out = out + " " + issue.Key + " -"
 
 	if !f.excludeSummary {
 		out = out + " " + issue.Fields.Summary
@@ -136,7 +139,7 @@ func PrintIssue(issue jira.Issue) string {
 Description: %s
 Status: %s
 `,
-		issue.ID,
+		issue.Key,
 		issue.Fields.Summary,
 		issue.Fields.Description,
 		status,

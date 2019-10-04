@@ -44,12 +44,11 @@ func (w *Workbench) Format() string {
 Current action: %s
 Issues: %d
 Selected: %d
-Queued: %d
 Completed: %d
 Actions: %d
-Queue: %d
+Queued: %d
 %s
-`, actionDesc, len(w.working), len(w.selection), len(w.assigned), len(w.completed), len(w.actionBases), len(queue), queueFmt)
+`, actionDesc, len(w.working), len(w.selection), len(w.completed), len(w.actionBases), len(queue), queueFmt)
 
 }
 
@@ -171,11 +170,14 @@ func (w *Workbench) Queue() []IssueAction {
 }
 
 // Clears queue at every slot where there isn't an error
-func (w *Workbench) ClearQueue(errs []error) {
+func (w *Workbench) ExecutionResult(errs []error) {
 	assigned := make([]IssueAssignment, 0)
 	for i, err := range errs {
 		if err != nil {
 			assigned = append(assigned, w.assigned[i])
+		} else {
+			assignment := w.assigned[i]
+			w.completed = append(w.completed, IssueAction{assignment.issue, w.actionBases[assignment.actionId]})
 		}
 	}
 	w.assigned = assigned

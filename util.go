@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"log"
 	"os/exec"
 	"runtime"
 	"sort"
@@ -14,7 +13,7 @@ import (
 )
 
 // courtesy of : https://gist.github.com/hyg/9c4afcd91fe24316cbf0
-func openbrowser(url string) {
+func openbrowser(url string) error {
 	var err error
 
 	switch runtime.GOOS {
@@ -27,9 +26,8 @@ func openbrowser(url string) {
 	default:
 		err = fmt.Errorf("unsupported platform")
 	}
-	if err != nil {
-		log.Fatal(err)
-	}
+
+	return err
 
 }
 func keysFromMap(mymap map[string]string) []string {

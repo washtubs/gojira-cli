@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"log"
+
 	"github.com/andygrunwald/go-jira"
 	"github.com/pkg/errors"
 )
@@ -81,7 +83,23 @@ type AddLabelAction struct {
 }
 
 func (a AddLabelAction) Execute(issue jira.Issue, client *jira.Client) error {
-	panic("not impl")
+	for _, existing := range issue.Fields.Labels {
+		if existing == string(a.Label) {
+			log.Printf("Label already exists, nothing to do")
+			return nil
+		}
+	}
+
+	issue.Fields.Labels = append(issue.Fields.Labels, string(a.Label))
+
+	_, resp, err := client.Issue.Update(&jira.Issue{
+		Key: issue.Key,
+		Fields: &jira.IssueFields{
+			Labels: issue.Fields.Labels,
+		},
+	})
+	LogHttpResponse(resp)
+	return err
 }
 
 func (a AddLabelAction) Build(svc *ActionBaseService) (IssueActionBase, error) {
@@ -142,8 +160,8 @@ func (a RelateOneAction) Execute(objectIssue jira.Issue, client *jira.Client) er
 		ID:           "",
 		Self:         "",
 		Type:         a.IssueLinkType,
-		OutwardIssue: &outwardIssue,
-		InwardIssue:  &inwardIssue,
+		OutwardIssue: &jira.Issue{Key: outwardIssue.Key},
+		InwardIssue:  &jira.Issue{Key: inwardIssue.Key},
 		Comment:      &jira.Comment{Body: a.Comment},
 	})
 	LogHttpResponse(resp)
@@ -161,7 +179,7 @@ func (a RelateOneAction) Build(svc *ActionBaseService) (IssueActionBase, error) 
 		return nil, err
 	}
 
-	err = svc.menuService.issueLinkTypeMenu.Select(subjectIssue.ID)
+	err = svc.menuService.issueLinkTypeMenu.Select(subjectIssue)
 	if err != nil {
 		return nil, err
 	}
@@ -201,8 +219,7 @@ type NavigateAction struct {
 
 func (a NavigateAction) Execute(issue jira.Issue, client *jira.Client) error {
 	url := client.GetBaseURL()
-	openbrowser(url.String() + "/" + issue.ID)
-	return nil
+	return openbrowser(url.String() + "browse/" + issue.Key)
 }
 
 func (a NavigateAction) Build(svc *ActionBaseService) (IssueActionBase, error) {
@@ -231,7 +248,7 @@ var actions = []IssueActionBase{
 		ActionType: ActionType{"addLabel", "Add label", "Add label '{{.Label}}' to _ISSUE"},
 	},
 	RelateOneAction{
-		ActionType: ActionType{"relateOne", "Link issue", "Add link: {{.SubjectIssue.ID}}{{if .SubjectIsInward}} {{.IssueLinkType.Inward}} {{else}} {{.IssueLinkType.Outward}} {{end}}_ISSUE"},
+		ActionType: ActionType{"relateOne", "Link issue", "Add link: {{.SubjectIssue.Key}}{{if .SubjectIsInward}} {{.IssueLinkType.Inward}} {{else}} {{.IssueLinkType.Outward}} {{end}}_ISSUE"},
 	},
 	NavigateAction{
 		ActionType: ActionType{"navigate", "Open in browser", "Open _ISSUE in browser"},

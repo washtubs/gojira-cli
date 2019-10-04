@@ -91,11 +91,10 @@ type IssueSearcher interface {
 const defaultStubPageSize = 10
 
 func getMaxResults(opts *jira.SearchOptions) int {
-	return 2
-	//if opts.MaxResults == 0 {
-	//return 50
-	//}
-	//return opts.MaxResults
+	if opts.MaxResults == 0 {
+		return 50
+	}
+	return opts.MaxResults
 }
 
 type defaultIssueSearcher struct {

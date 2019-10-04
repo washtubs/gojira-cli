@@ -14,8 +14,8 @@ type IssueActionFormatter struct {
 
 func (f IssueActionFormatter) Format() string {
 	issueRef := "an issue"
-	if f.issue.ID != "" {
-		issueRef = f.issue.ID
+	if f.issue.Key != "" {
+		issueRef = f.issue.Key
 	}
 	t := strings.ReplaceAll(f.action.Template(), "_ISSUE", issueRef)
 

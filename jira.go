@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/andygrunwald/go-jira"
 	"github.com/manifoldco/promptui"
@@ -14,15 +15,19 @@ import (
 )
 
 type JiraClientFactory struct {
-	config Config
+	config *Config
+	client *jira.Client
 }
 
 func (j *JiraClientFactory) GetClient() (*jira.Client, error) {
+	if j.client != nil {
+		return j.client, nil
+	}
 	config := j.config.Client
 	crt, err := tls.LoadX509KeyPair(config.Certfile, config.Keyfile)
 	if err != nil {
 		log.Println("Error loading X509 pair for cert " + config.Certfile +
-			" and key file " + config.Keyfile)
+			" and key file " + config.Keyfile + " : " + err.Error())
 		return nil, err
 	}
 
@@ -37,10 +42,11 @@ func (j *JiraClientFactory) GetClient() (*jira.Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	password := string(bs)
+	password := strings.TrimSpace(string(bs))
 
 	tlsConfig := &tls.Config{
-		Certificates: []tls.Certificate{crt},
+		Certificates:  []tls.Certificate{crt},
+		Renegotiation: tls.RenegotiateOnceAsClient,
 	}
 	tr := &http.Transport{
 		TLSClientConfig: tlsConfig,
@@ -48,13 +54,14 @@ func (j *JiraClientFactory) GetClient() (*jira.Client, error) {
 	cl := &http.Client{
 		Transport: tr,
 	}
-	jcli, err := jira.NewClient(cl, config.Url)
-	jcli.Authentication.SetBasicAuth(config.Username, password)
-	return jcli, err
+	j.client, err = jira.NewClient(cl, config.Url)
+	j.client.Authentication.SetBasicAuth(config.Username, password)
+
+	return j.client, err
 }
 
-func NewJiraClientFactory() *JiraClientFactory {
-	return &JiraClientFactory{}
+func NewJiraClientFactory(config *Config) *JiraClientFactory {
+	return &JiraClientFactory{config: config}
 }
 
 type IssueLinkTypeMenu struct {
@@ -65,11 +72,11 @@ type IssueLinkTypeMenu struct {
 
 func (m *IssueLinkTypeMenu) IssueLinkType() (linkType jira.IssueLinkType, subjectIsInward bool) {
 	linkType = m.issueLinkTypes[m.cursor/2]
-	subjectIsInward = m.cursor%2 == 0
+	subjectIsInward = m.cursor%2 == 1
 	return
 }
 
-func (m *IssueLinkTypeMenu) Select(subjectIssueId string) error {
+func (m *IssueLinkTypeMenu) Select(subjectIssue jira.Issue) error {
 	if m.issueLinkTypes == nil {
 		client, err := m.jiraClientFactory.GetClient()
 		if err != nil {
@@ -83,7 +90,7 @@ func (m *IssueLinkTypeMenu) Select(subjectIssueId string) error {
 		}
 
 		var issueLinkTypesWrap map[string][]jira.IssueLinkType
-		resp, err := client.Do(req, issueLinkTypesWrap)
+		resp, err := client.Do(req, &issueLinkTypesWrap)
 		LogHttpResponse(resp)
 		if err != nil {
 			return err
@@ -97,8 +104,8 @@ func (m *IssueLinkTypeMenu) Select(subjectIssueId string) error {
 
 	labels := make([]string, len(m.issueLinkTypes)*2)
 	for i, link := range m.issueLinkTypes {
-		labels[i*2] = subjectIssueId + " - " + link.Inward + "..."
-		labels[i*2+1] = subjectIssueId + " - " + link.Outward + "..."
+		labels[i*2] = subjectIssue.Key + " - " + link.Inward + "..."
+		labels[i*2+1] = subjectIssue.Key + " - " + link.Outward + "..."
 	}
 
 	p := promptui.Select{

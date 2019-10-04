@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"log"
-
 	"github.com/andygrunwald/go-jira"
 	"github.com/pkg/errors"
 )
@@ -25,13 +23,10 @@ func mapIssueChan(issues <-chan jira.Issue, formatter IssueFormatter) <-chan For
 		for {
 			issue, more := <-issues
 			if !more {
-				log.Printf("closed")
 				close(formatters)
 				return
 			}
-			log.Printf("got formatter")
 			formatters <- IssueFormattable{issue, formatter}
-			log.Printf("put formatter")
 		}
 	}()
 	return formatters
@@ -62,8 +57,8 @@ func (s *IssueSelector) Select(issues <-chan jira.Issue, interactor SearchIntera
 	}
 	defer StopListenRpc(port)
 
+	opts.Exclude = 1 // we include the ID in the formatter
 	idxs, canceled, err := FzfSelectChan(mapIssueChan(issues, s.formatter), opts, port)
-	log.Println("done select")
 	if err != nil {
 		return nil, false, errors.Wrap(err, "Failed to get FZF results for issue selection")
 	}

@@ -67,7 +67,6 @@ func SetupRpc() {
 }
 
 func ListenRpc(f SearchInteractor) (int, error) {
-	log.Println("acquiring mutex")
 	mutex.Lock()
 	defer mutex.Unlock()
 
@@ -99,7 +98,6 @@ func stopListenRpcIfNeeded(port int) {
 }
 
 func StopListenRpc(port int) {
-	log.Println("acquiring mutex")
 	mutex.Lock()
 	defer mutex.Unlock()
 

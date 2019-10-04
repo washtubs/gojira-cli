@@ -43,7 +43,7 @@ func (e *ExecutorService) Execute(actions []IssueAction, dryRun bool) []error {
 func NewExecutorService(
 	jiraClientFactory *JiraClientFactory,
 ) *ExecutorService {
-	rateLimiter := NewRateLimiter(time.Second/4, 5)
+	rateLimiter := NewRateLimiter(time.Second/2, 2)
 	return &ExecutorService{
 		jiraClientFactory,
 		rateLimiter,

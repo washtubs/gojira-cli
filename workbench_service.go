@@ -201,7 +201,7 @@ func (s *defaultWorkbenchService) AddActionInteractive(w *Workbench) error {
 func (s *defaultWorkbenchService) Execute(w *Workbench, dryRun bool) error {
 	errs := s.executorService.Execute(w.Queue(), dryRun)
 	if !dryRun {
-		w.ClearQueue(errs)
+		w.ExecutionResult(errs)
 	}
 	return nil
 }

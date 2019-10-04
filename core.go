@@ -36,11 +36,11 @@ func NewApp() *App {
 		log.Fatal(err)
 	}
 
-	app.jiraClientFactory = NewJiraClientFactory()
+	app.jiraClientFactory = NewJiraClientFactory(app.config)
 
 	// Create stateful entities
 	app.workbench = InitWorkbench()
-	app.issueSearcher = InitIssueSearcher(jiraClientFactory)
+	app.issueSearcher = InitIssueSearcher(app.jiraClientFactory)
 	app.formatterConfig = &FormatterConfig{}
 
 	// Wire everything up
@@ -106,7 +106,6 @@ func MainMenuActions(app *App, svc WorkbenchService, menuService *MenuService, w
 		},
 		&MenuAction{
 			action: func() error {
-				app.menuService.Comment("hi")
 				return nil
 			},
 			label: "Debug",
@@ -197,7 +196,7 @@ func RunWorkbench() {
 
 		err = mainMenuActions[cursor].action()
 		if err != nil && !IsCancelError(err) {
-			fmt.Println(err)
+			fmt.Println("ERROR: " + err.Error())
 		}
 
 	}
