@@ -282,7 +282,7 @@ var actions = []IssueActionBase{
 		ActionType: ActionType{"addLabel", "Add label", "Add label '{{.Label}}' to _ISSUE"},
 	},
 	AssignUserAction{
-		ActionType: ActionType{"assignUser", "Assign user", "Assign '{{.UserName}}' to _ISSUE"},
+		ActionType: ActionType{"assignUser", "Assign user", "Assign [{{.UserName}}] to _ISSUE"},
 	},
 	RelateOneAction{
 		ActionType: ActionType{"relateOne", "Link issue", "Add link: {{.SubjectIssue.Key}}{{if .SubjectIsInward}} {{.IssueLinkType.Inward}} {{else}} {{.IssueLinkType.Outward}} {{end}}_ISSUE"},

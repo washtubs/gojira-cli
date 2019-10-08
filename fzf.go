@@ -48,7 +48,7 @@ func FzfSelectChan(c <-chan Formatter, opts SelectOptions, rpcPort int) ([]int, 
 	}
 
 	if rpcPort != 0 { // RPC supported
-		args = append(args, "--preview", "gojira-cli _rpc print {}")
+		args = append(args, "--preview", "gojira-cli _rpc print {} | fold -w 80")
 		args = append(args, "--bind", "f1:execute(gojira-cli _rpc load)")
 	}
 

@@ -74,7 +74,7 @@ func (m *FormatterMenu) Select() error {
 	options := make([]string, 0)
 	for _, flag := range formatterFlags {
 		label := "Include "
-		if !m.Get(flag) {
+		if m.Get(flag) {
 			label = "Exclude "
 		}
 		options = append(options, label+flag)
@@ -136,13 +136,18 @@ func PrintIssue(issue jira.Issue) string {
 		status = issue.Fields.Status.Name
 	}
 	return fmt.Sprintf(`%s: %s
+
 Description: %s
+
 Status: %s
+
+Reporter: %s
 `,
 		issue.Key,
 		issue.Fields.Summary,
 		issue.Fields.Description,
 		status,
+		issue.Fields.Reporter.DisplayName,
 	)
 }
 

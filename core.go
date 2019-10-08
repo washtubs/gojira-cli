@@ -64,6 +64,7 @@ func NewApp() *App {
 	app.menuService.RegisterFormatterMenu(&FormatterMenu{app.formatterConfig, 0})
 	app.menuService.RegisterIssueSearchMenu(app)
 	app.menuService.RegisterIssueLinkTypeMenu(app)
+	app.menuService.RegisterUserFavoritesMenu(app)
 
 	return app
 }
@@ -108,6 +109,8 @@ func MainMenuActions(app *App, svc WorkbenchService, menuService *MenuService, w
 		},
 		&MenuAction{ // TODO hide unless in debug mode
 			action: func() error {
+				menuService.userFavoritesMenu.Select("Pick a user")
+				log.Println("selected : " + menuService.userFavoritesMenu.SelectedUser())
 				return nil
 			},
 			label: "Debug",

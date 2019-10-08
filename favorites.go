@@ -43,6 +43,9 @@ func (m *UsersFavoritesMenu) SelectedUser() string {
 func (m *UsersFavoritesMenu) Select(prompt string) error {
 	users := m.favorites.Users()
 	formatters := make([]Formatter, len(users))
+	for i, u := range users {
+		formatters[i] = StringFormatter(u)
+	}
 	idxs, cancelled, err := FzfSelect(formatters, SelectOptions{Prompt: prompt, One: true}, 0)
 	if cancelled {
 		return CancelError()
@@ -54,5 +57,6 @@ func (m *UsersFavoritesMenu) Select(prompt string) error {
 		panic("expected exactly one")
 	}
 	m.cursor = idxs[0]
+	m.selectedUser = users[m.cursor]
 	return nil
 }
