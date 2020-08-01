@@ -21,7 +21,7 @@ func (m *StaticMenu) Select() error {
 	var err error
 	m.cursor, _, err = p.RunCursorAt(m.cursor, 0)
 	if err != nil {
-		log.Printf("Error making selection: ", err)
+		log.Printf("Error making selection: %s", err)
 	}
 	return err
 }

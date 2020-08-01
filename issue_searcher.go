@@ -79,10 +79,12 @@ func (j *jiraIssueEnum) ForEachIssue(jql string, opts *jira.SearchOptions, each 
 		return err
 	}
 
+	log.Printf("Executing search jql=[%s] opts=%+v", jql, opts)
 	return client.Issue.SearchPages(jql, opts, each)
 }
 
 type IssueSearcher interface {
+	GetSearchQuery() string
 	SetSearchQuery(jql string)
 	SearchAsync() (<-chan jira.Issue, SearchInteractor)
 }
@@ -104,6 +106,13 @@ type defaultIssueSearcher struct {
 	mutex sync.Mutex
 	opts  *jira.SearchOptions
 	jql   string
+}
+
+func (is *defaultIssueSearcher) GetSearchQuery() string {
+	is.mutex.Lock()
+	defer is.mutex.Unlock()
+
+	return is.jql
 }
 
 func (is *defaultIssueSearcher) SetSearchQuery(jql string) {

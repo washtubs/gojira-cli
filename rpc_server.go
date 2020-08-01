@@ -5,10 +5,12 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
+	"os"
+	"os/exec"
 	"strconv"
 	"sync"
 
-	"github.com/pkg/errors"
+	"github.com/andygrunwald/go-jira"
 )
 
 var (
@@ -16,54 +18,81 @@ var (
 	listener          net.Listener
 	socketPortDefault = 4378
 	httpPath          = "fzf"
-	fzfReceiver       = &FzfReceiver{}
+
+	receiver = &QueryRunnerReceiver{&FzfReceiver{}, nil, nil, nil, nil, true}
 )
 
-type FzfReceiver struct {
-	h SearchInteractor
+type QueryRunnerReceiver struct {
+	*FzfReceiver
+	searcher  IssueSearcher
+	issueChan <-chan jira.Issue
+	formatter IssueFormatter
+	cancel    <-chan bool
+	init      bool
 }
 
-type Noop struct{}
-
-type StringResp struct {
-	String string
+type QueryReq struct {
+	Jql, File string
 }
 
-func (f *FzfReceiver) LoadResults(req Noop, resp *Noop) error {
-	if f.h == nil {
-		log.Println("Fzf request received but not registered")
-		return errors.New("Not registered")
-	}
-	log.Println("LoadResults")
-	f.h.LoadResults()
-	return nil
-}
+func (q *QueryRunnerReceiver) HandleQuery(req QueryReq, resp *Noop) error {
+	jql, file := req.Jql, req.File
+	log.Printf("REQUEST RECEIVED %s %s", jql, file)
+	if !q.init {
+		// If we already initialized we need to search again
+		q.searcher.SetSearchQuery(jql)
+		q.issueChan, q.interactor = q.searcher.SearchAsync()
+	} // if this is the first run, the query has already been set and search has started
+	q.init = false
 
-func (f *FzfReceiver) PrintIssue(issueId string, resp *StringResp) error {
-	if f.h == nil {
-		log.Println("Fzf request received but not registered")
-		return errors.New("Not registered")
-	}
-
-	found := false
-	for _, issue := range f.h.Loaded() {
-		if issue.ID == issueId {
-			resp.String = PrintIssue(issue)
-			found = true
-			break
-		}
+	log.Printf("Opening fifo %s", file)
+	f, err := os.OpenFile(file, os.O_APPEND|os.O_WRONLY, 0600)
+	if err != nil {
+		log.Printf("Failed to open file for append: %s", file)
+		return err
 	}
 
-	if !found {
-		return errors.New("No issue found")
-	}
+	formatters := mapIssueChan(q.issueChan, q.formatter)
+	log.Printf("Writing")
+	fzfWrite(formatters, f, q.cancel)
+
+	// We are not concerned with reading the output of fzf here, just writing results,
+	// as the user may discard them
+
 	return nil
 }
 
 func SetupRpc() {
 	srv := rpc.NewServer()
-	srv.Register(fzfReceiver)
+	srv.Register(receiver)
 	srv.HandleHTTP(httpPath, httpPath+"debug")
+}
+
+func ListenRpcQueryRunner(searcher IssueSearcher, issueChan <-chan jira.Issue, interactor SearchInteractor, formatter IssueFormatter, cancel <-chan bool) (int, error) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	// TODO: use a different port if needed
+	port := socketPortDefault
+
+	stopListenRpcIfNeeded(port)
+
+	receiver.interactor = interactor
+	receiver.issueChan = issueChan
+	receiver.searcher = searcher
+	receiver.formatter = formatter
+	receiver.init = true
+
+	//os.Setenv(socketAddrEnv, "localhost:"+strconv.Itoa(socketPortDefault))
+	var err error
+	listener, err = net.Listen("tcp", "0.0.0.0:"+strconv.Itoa(port))
+	if err != nil {
+		return 0, err
+	}
+	go http.Serve(listener, nil)
+
+	return port, nil
+
 }
 
 func ListenRpc(f SearchInteractor) (int, error) {
@@ -75,7 +104,7 @@ func ListenRpc(f SearchInteractor) (int, error) {
 
 	stopListenRpcIfNeeded(port)
 
-	fzfReceiver.h = f
+	receiver.interactor = f
 
 	//os.Setenv(socketAddrEnv, "localhost:"+strconv.Itoa(socketPortDefault))
 	var err error
@@ -94,7 +123,12 @@ func stopListenRpcIfNeeded(port int) {
 	}
 	listener = nil
 
-	fzfReceiver.h = nil
+	receiver.interactor = nil
+	receiver.init = true
+	receiver.searcher = nil
+	receiver.issueChan = nil
+	receiver.formatter = nil
+	receiver.cancel = nil
 }
 
 func StopListenRpc(port int) {
@@ -103,4 +137,8 @@ func StopListenRpc(port int) {
 
 	stopListenRpcIfNeeded(port)
 
+}
+
+func SetupEnvForRpc(cmd *exec.Cmd, port int) {
+	cmd.Env = append(cmd.Env, rpcReplyAddrEnv+"=localhost:"+strconv.Itoa(port))
 }

@@ -58,7 +58,7 @@ func (s *defaultWorkbenchService) FilterInteractive(w *Workbench) error {
 func (s *defaultWorkbenchService) AddIssuesInteractive(w *Workbench) error {
 	issues, err := s.issueSearchService.SearchInteractive(SelectOptions{
 		Prompt: "Select issues to add to the workbench",
-	})
+	}, true)
 	if err != nil {
 		return err
 	}

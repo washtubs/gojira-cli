@@ -88,7 +88,7 @@ func (m *FormatterMenu) Select() error {
 
 	cursor, _, err := p.RunCursorAt(m.cursor, 0)
 	if err != nil {
-		log.Printf("Error making selection: ", err)
+		log.Printf("Error making selection: %s", err)
 		return err
 	}
 	m.cursor = cursor

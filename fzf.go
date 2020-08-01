@@ -36,10 +36,8 @@ func FzfSelect(candidates []Formatter, opts SelectOptions, rpcPort int) ([]int, 
 	return FzfSelectChan(formatterSliceToChan(candidates), opts, rpcPort)
 }
 
-func FzfSelectChan(c <-chan Formatter, opts SelectOptions, rpcPort int) ([]int, bool, error) {
-	args := []string{
-		"--with-nth", strconv.Itoa(2+opts.Exclude) + "..", "--reverse",
-	}
+func appendFzfArgs(args []string, opts SelectOptions, rpcPort int) []string {
+	args = append(args, "--with-nth", strconv.Itoa(2+opts.Exclude)+"..", "--reverse")
 	if opts.One {
 		args = append(args, "+m")
 	}
@@ -52,11 +50,17 @@ func FzfSelectChan(c <-chan Formatter, opts SelectOptions, rpcPort int) ([]int, 
 		args = append(args, "--bind", "f1:execute(gojira-cli _rpc load)")
 	}
 
+	return args
+
+}
+
+func FzfSelectChan(c <-chan Formatter, opts SelectOptions, rpcPort int) ([]int, bool, error) {
+	args := appendFzfArgs(make([]string, 0), opts, rpcPort)
 	cmd := exec.Command("fzf-tmux", args...) // TODO figure out why I have to use fzf-tmux instead of fzf
 
 	if rpcPort != 0 { // RPC supported
 		cmd.Env = os.Environ()
-		cmd.Env = append(cmd.Env, rpcReplyAddrEnv+"=localhost:"+strconv.Itoa(rpcPort))
+		SetupEnvForRpc(cmd, rpcPort)
 	}
 
 	// Collect all output in a buffer
@@ -66,7 +70,6 @@ func FzfSelectChan(c <-chan Formatter, opts SelectOptions, rpcPort int) ([]int, 
 		panic(err)
 	}
 
-	buf := bytes.NewBuffer([]byte{})
 	inR, inW := io.Pipe()
 	cmd.Stdin = inR
 
@@ -76,24 +79,7 @@ func FzfSelectChan(c <-chan Formatter, opts SelectOptions, rpcPort int) ([]int, 
 	}
 
 	cancel := make(chan bool, 1)
-	go func() {
-		line := 0
-		for {
-			select {
-			case formatter, more := <-c:
-				if !more {
-					inW.Close()
-					return
-				}
-				buf.WriteString(strconv.Itoa(line) + " " + formatter.Format() + "\n")
-				buf.WriteTo(inW)
-				line = line + 1
-			case <-cancel:
-				inW.Close()
-				return
-			}
-		}
-	}()
+	go fzfWrite(c, inW, cancel)
 
 	go func() {
 
@@ -117,8 +103,15 @@ func FzfSelectChan(c <-chan Formatter, opts SelectOptions, rpcPort int) ([]int, 
 		return nil, true, nil
 	}
 
+	indexes := fzfConvertOutput(stdout.String())
+
+	return indexes, false, nil
+}
+
+func fzfConvertOutput(out string) []int {
+
 	// convert full string results into indexes
-	results := strings.Split(stdout.String(), "\n")
+	results := strings.Split(out, "\n")
 	indexes := make([]int, 0, len(results))
 	for _, result := range results {
 		if result == "" {
@@ -131,6 +124,33 @@ func FzfSelectChan(c <-chan Formatter, opts SelectOptions, rpcPort int) ([]int, 
 
 		indexes = append(indexes, idx)
 	}
+	return indexes
+}
 
-	return indexes, false, nil
+func fzfWrite(c <-chan Formatter, inW io.WriteCloser, cancel <-chan bool) error {
+	line := 0
+	buf := bytes.NewBuffer([]byte{})
+	for {
+		select {
+		case formatter, more := <-c:
+			if !more {
+				inW.Close()
+				return nil
+			}
+			_, err := buf.WriteString(strconv.Itoa(line) + " " + formatter.Format() + "\n")
+			if err != nil {
+				return err
+			}
+
+			_, err = buf.WriteTo(inW)
+			if err != nil {
+				return err
+			}
+
+			line = line + 1
+		case <-cancel:
+			inW.Close()
+			return nil
+		}
+	}
 }

@@ -16,6 +16,12 @@ func main() {
 		switch action {
 		case "load":
 			c.LoadResults()
+		case "query":
+			fifo := flag.Arg(2)
+			if fifo == "" {
+				log.Fatal("Expected a fifo that the rpc server can access as the first argument")
+			}
+			c.Query(fifo)
 		case "print":
 			fzfRecord := flag.Arg(2)
 			fields := strings.Fields(fzfRecord)

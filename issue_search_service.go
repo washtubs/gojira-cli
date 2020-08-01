@@ -15,8 +15,9 @@ type IssueSearchService struct {
 }
 
 // Handles all interaction with the stateful searcher, allowing menu usage as well
-func (s *IssueSearchService) SearchInteractive(opts SelectOptions) ([]jira.Issue, error) {
+func (s *IssueSearchService) SearchInteractive(opts SelectOptions, useQueryRunner bool) ([]jira.Issue, error) {
 
+	log.Printf("Searching %+v", opts)
 	jqlKey, err := s.menuService.SelectJQL()
 	if err != nil {
 		return nil, err
@@ -29,11 +30,24 @@ func (s *IssueSearchService) SearchInteractive(opts SelectOptions) ([]jira.Issue
 
 	s.searcher.SetSearchQuery(jql)
 
+	log.Printf("Executing search, %+v", opts)
+
+	var (
+		idxs       []int
+		cancelled  bool
+		interactor SearchInteractor
+	)
+
 	// TODO allow pagination
 	issuesChan, interactor := s.searcher.SearchAsync()
 
-	idxs, cancelled, err := s.selector.Select(issuesChan, interactor, opts)
+	if useQueryRunner {
+		idxs, cancelled, err = executeQueryRunner(s.searcher, s.selector.formatter, issuesChan, interactor, opts)
+	} else {
+		idxs, cancelled, err = s.selector.Select(issuesChan, interactor, opts)
+	}
 	if err != nil {
+		log.Printf("Error encountered during execution of selector query_runner=%v: %s", useQueryRunner, err.Error())
 		return nil, err
 	}
 	if cancelled {
@@ -77,7 +91,7 @@ func (m *IssueSearchMenu) Select() error {
 	}
 	cursor, _, err := p.RunCursorAt(m.cursor, 0)
 	if err != nil {
-		log.Printf("Error making selection: ", err)
+		log.Printf("Error making selection: %s", err)
 		return err
 	}
 
@@ -110,7 +124,7 @@ func (m *IssueSearchMenu) Search(prompt string) (jira.Issue, error) {
 			selected[i] = m.workbench.working[idx]
 		}
 	} else {
-		selected, err = m.issueSearchService.SearchInteractive(opts)
+		selected, err = m.issueSearchService.SearchInteractive(opts, true)
 	}
 
 	if len(selected) != 1 {
