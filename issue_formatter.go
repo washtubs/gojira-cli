@@ -9,10 +9,6 @@ import (
 	"github.com/manifoldco/promptui"
 )
 
-type Formatter interface {
-	Format() string
-}
-
 type IssueFormattable struct {
 	issue     jira.Issue
 	formatter IssueFormatter
@@ -33,7 +29,7 @@ type FormatterConfig struct {
 	includeReporter bool
 }
 
-var formatterFlags = []string{
+var issueFormatterFlags = []string{
 	"summary",
 	"labels",
 	"reporter",
@@ -72,7 +68,7 @@ func (m *FormatterMenu) Toggle(flag string) {
 
 func (m *FormatterMenu) Select() error {
 	options := make([]string, 0)
-	for _, flag := range formatterFlags {
+	for _, flag := range issueFormatterFlags {
 		label := "Include "
 		if m.Get(flag) {
 			label = "Exclude "
@@ -93,7 +89,7 @@ func (m *FormatterMenu) Select() error {
 	}
 	m.cursor = cursor
 
-	toggleFlag := formatterFlags[cursor]
+	toggleFlag := issueFormatterFlags[cursor]
 	m.Toggle(toggleFlag)
 	return nil
 }

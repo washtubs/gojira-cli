@@ -26,10 +26,41 @@ func (m *StaticMenu) Select() error {
 	return err
 }
 
+type FzfMenu struct {
+	prompt  string
+	entries []string
+	cursor  int
+}
+
+func (m *FzfMenu) Select() error {
+	var err error
+	formatters := make([]Formatter, 0, len(m.entries))
+	for _, v := range m.entries {
+		formatters = append(formatters, StringFormatter(v))
+	}
+
+	idxs, cancelled, err := FzfSelect(formatters, SelectOptions{
+		Prompt: "Please select an action type",
+		One:    true,
+	}, 0)
+	if err != nil {
+		return err
+	}
+	if cancelled {
+		return CancelError()
+	}
+	if len(idxs) != 1 {
+		panic("Expected exactly one")
+	}
+	m.cursor = idxs[0]
+
+	return err
+}
+
 // Basically mediates access to the simple promts using promptui
 type MenuService struct {
 	config            *Config
-	jqlMenu           *StaticMenu
+	jqlMenu           *FzfMenu
 	mainMenu          *StaticMenu
 	formatterMenu     *FormatterMenu
 	issueSearchMenu   *IssueSearchMenu
@@ -105,7 +136,7 @@ func NewMenuService(
 ) *MenuService {
 	return &MenuService{
 		config: config,
-		jqlMenu: &StaticMenu{
+		jqlMenu: &FzfMenu{
 			prompt:  "Please select a JQL",
 			entries: keysFromMap(config.JQLs),
 		},
