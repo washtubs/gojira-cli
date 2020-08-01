@@ -38,6 +38,7 @@ func executeQueryRunner(searcher IssueSearcher, formatter IssueFormatter, issues
 	defer StopListenRpc(port)
 
 	args := []string{"-d", "70%", "--"}
+	opts.Exclude = 1 // we include the ID in the formatter
 	args = appendFzfArgs(args, opts, port)
 	cmd := exec.Command("query-runner", args...)
 
@@ -70,20 +71,22 @@ func executeQueryRunner(searcher IssueSearcher, formatter IssueFormatter, issues
 		// so Wait() will finish
 		out, err := ioutil.ReadAll(outPipe)
 		if err != nil {
-			log.Println(err)
+			log.Println("Error reading output of query-runner: ", err)
 			return
 		}
 
+		log.Printf("Read all %d %s", len(out), string(out))
 		stdout = bytes.NewBuffer(out)
 		cancel <- true
 	}()
 
 	err = cmd.Wait()
 
-	if err != nil {
+	if err != nil || stdout == nil {
 		return nil, true, nil
 	}
 
+	log.Printf("Got %d %s", stdout.Len(), stdout.String())
 	indexes := fzfConvertOutput(stdout.String())
 	log.Printf("query-runner finished successfully: %d records", len(indexes))
 	return indexes, false, nil
