@@ -37,7 +37,7 @@ func NewApp() *App {
 		log.Fatal(err)
 	}
 
-	app.jiraClientFactory = NewJiraClientFactory(app.config)
+	app.jiraClientFactory = NewJiraClientFactory(app)
 
 	// Create stateful entities
 	app.workbench = InitWorkbench()

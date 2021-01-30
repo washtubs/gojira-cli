@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"strings"
 
@@ -37,6 +38,25 @@ func main() {
 			log.Fatal("Unknown action " + action)
 		}
 		return
+	} else if flag.Arg(0) == "get" {
+		usage := "gojira-cli get ACME-12345"
+		issueId := flag.Arg(1)
+		if issueId == "" {
+			log.Fatal(usage)
+		}
+		app := cli.NewApp()
+		jiraClientFactory := cli.NewJiraClientFactory(app)
+		client, err := jiraClientFactory.GetClient()
+		if err != nil {
+			log.Fatal(err)
+		}
+		issue, _, err := client.Issue.Get(issueId, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("%s: %s\n", issueId, issue.Fields.Summary)
+		return
+
 	}
 
 	cli.RunWorkbench()

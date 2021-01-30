@@ -60,8 +60,8 @@ func (j *JiraClientFactory) GetClient() (*jira.Client, error) {
 	return j.client, err
 }
 
-func NewJiraClientFactory(config *Config) *JiraClientFactory {
-	return &JiraClientFactory{config: config}
+func NewJiraClientFactory(app *App) *JiraClientFactory {
+	return &JiraClientFactory{config: app.config}
 }
 
 type IssueLinkTypeMenu struct {

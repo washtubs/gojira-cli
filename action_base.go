@@ -2,6 +2,9 @@ package cli
 
 import (
 	"log"
+	"os/exec"
+	"strings"
+	"text/template"
 
 	"github.com/andygrunwald/go-jira"
 	"github.com/pkg/errors"
@@ -272,11 +275,81 @@ func (a NavigateAction) BuildParams(params []string) (IssueActionBase, error) {
 
 func (a NavigateAction) ToParams() []string { return []string{} }
 
+// ShellAction
+
+type ShellAction struct {
+	ActionType
+	BaseAction
+	Label string
+	Cmd   string
+}
+
+type ShellParams struct {
+	Issue jira.Issue
+}
+
+func (a ShellAction) getCmd(params ShellParams) (string, error) {
+	tmp, err := template.New(a.Label).Parse(a.Cmd)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to create template for %s", a.Cmd)
+	}
+	tmp.Option("missingkey=error")
+	cmdInterp := new(strings.Builder)
+	err = tmp.Execute(cmdInterp, params)
+	if err != nil {
+		return "", errors.Wrapf(err, "Failed to execute template for %s with params [%+v]", a.Cmd, params)
+	}
+
+	return cmdInterp.String(), nil
+}
+
+func (a ShellAction) Execute(issue jira.Issue, client *jira.Client) error {
+	cmdStr, err := a.getCmd(ShellParams{issue})
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command("bash", "-c", cmdStr)
+	errOut := new(strings.Builder)
+	out := new(strings.Builder)
+	cmd.Stderr = errOut
+	cmd.Stdout = out
+
+	err = cmd.Run()
+	if err != nil {
+		return errors.Wrapf(err, "Error running shell command [bash -c [%s]]: \n%s", a.Cmd, errOut.String())
+	}
+	outStr := out.String()
+	if outStr != "" {
+		log.Printf("Cmd out: %s", outStr)
+	}
+	return nil
+}
+
+func (a ShellAction) Build(svc *ActionBaseService) (IssueActionBase, error) {
+	return ShellAction{
+		a.ActionType,
+		BaseAction{true},
+		a.Label,
+		a.Cmd,
+	}, nil
+}
+
+func (a ShellAction) BuildParams(params []string) (IssueActionBase, error) {
+	return ShellAction{
+		a.ActionType,
+		BaseAction{true},
+		a.Label,
+		a.Cmd,
+	}, nil
+}
+
+func (a ShellAction) ToParams() []string { return []string{} }
+
 // End action definitions
 
 var actions = []IssueActionBase{
 	AddCommentAction{
-		ActionType: ActionType{"addComment", "Add comment", "Add comment to _ISSUE"},
+		ActionType: ActionType{"addComment", "Add comment", "Add comment to _ISSUE: {{ .Comment }}"},
 	},
 	AddLabelAction{
 		ActionType: ActionType{"addLabel", "Add label", "Add label '{{.Label}}' to _ISSUE"},
@@ -290,6 +363,19 @@ var actions = []IssueActionBase{
 	NavigateAction{
 		ActionType: ActionType{"navigate", "Open in browser", "Open _ISSUE in browser"},
 	},
+}
+
+func getIssueActions(config *Config) []IssueActionBase {
+	issueActions := make([]IssueActionBase, 0, len(actions)+len(config.Actions))
+	issueActions = append(issueActions, actions...)
+	for k, v := range config.Actions {
+		issueActions = append(issueActions, ShellAction{
+			ActionType: ActionType{k, k, k + " for _ISSUE"},
+			Label:      k,
+			Cmd:        v,
+		})
+	}
+	return issueActions
 }
 
 type ActionBaseService struct {
@@ -325,6 +411,7 @@ func (s *ActionBaseService) SelectAction(actionBases map[int]IssueActionBase) (i
 }
 
 func (s *ActionBaseService) BuildAction() (IssueActionBase, error) {
+	actions := getIssueActions(s.config)
 	actionTypeItems := make([]Formatter, len(actions))
 	for i, v := range actions {
 		actionTypeItems[i] = WrapFormatter(v)

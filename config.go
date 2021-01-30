@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 
 	"github.com/adrg/xdg"
@@ -19,6 +18,8 @@ queries:
   "project foo": project = "FOO"
   "project bar": project = "BAR"
   "all":
+actions:
+  "helloworld": echo {{ .Issue.ID }}
 client:
   url: ""
   keyfile: ""
@@ -33,7 +34,8 @@ type FavoritesConfig struct {
 
 type Config struct {
 	// WOuld prefer to use the saved JQL queries for the user, but I
-	JQLs map[string]string `yaml:"queries"`
+	JQLs    map[string]string `yaml:"queries"`
+	Actions map[string]string `yaml:"actions"`
 	// Jira doesn't seem to keep a list of existing labels so I gotta add them via config
 	LabelsAllowed []Label          `yaml:"labels"`
 	Client        JiraClientConfig `yaml:"client"`
@@ -90,7 +92,7 @@ func (cl defaultConfigLoader) LoadConfig() (*Config, error) {
 		return config, err // return incomplete object as well
 	}
 
-	log.Printf("config=%+v", config)
+	//log.Printf("config=%+v", config)
 
 	return config, nil
 }

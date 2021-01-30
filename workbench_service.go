@@ -1,5 +1,7 @@
 package cli
 
+import "log"
+
 // Handles all interactive interaction w/ the Workbench
 type WorkbenchService interface {
 
@@ -144,10 +146,12 @@ func (s *defaultWorkbenchService) AssignInteractive(w *Workbench) error {
 // Sets the actionId from the workspace to what the user chooses
 func (s *defaultWorkbenchService) SelectActionInteractive(w *Workbench) error {
 	if len(w.actionBases) == 0 {
+		log.Printf("building action")
 		actionBase, err := s.actionBaseService.BuildAction()
 		if err != nil {
 			return err
 		}
+		log.Printf("done building action")
 
 		actionId, err := w.AddActionBase(actionBase)
 		if err != nil {
@@ -158,6 +162,7 @@ func (s *defaultWorkbenchService) SelectActionInteractive(w *Workbench) error {
 		return nil
 	}
 
+	log.Printf("selecting action")
 	actionId, err := s.actionBaseService.SelectAction(w.actionBases)
 	if err != nil {
 		return err
