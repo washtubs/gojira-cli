@@ -62,6 +62,7 @@ type MenuService struct {
 	config            *Config
 	jqlMenu           *FzfMenu
 	mainMenu          *StaticMenu
+	advancedMenu      *StaticMenu
 	formatterMenu     *FormatterMenu
 	issueSearchMenu   *IssueSearchMenu
 	issueLinkTypeMenu *IssueLinkTypeMenu
@@ -100,6 +101,13 @@ func (s *MenuService) RegisterMainMenu(mainMenuActions []string) {
 	s.mainMenu = &StaticMenu{
 		prompt:  "Select an option",
 		entries: mainMenuActions,
+	}
+}
+
+func (s *MenuService) RegisterAdvancedMenu(advancedMenuActions []string) {
+	s.advancedMenu = &StaticMenu{
+		prompt:  "Select an option",
+		entries: advancedMenuActions,
 	}
 }
 

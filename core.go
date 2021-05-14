@@ -60,7 +60,16 @@ func NewApp() *App {
 	for i, action := range mainMenuActions {
 		mainMenuActionLabels[i] = action.label
 	}
+
+	advancedMenuActions = AdvancedMenuActions(app, app.workbenchService, app.menuService, app.workbench)
+
+	advancedMenuActionLabels := make([]string, len(advancedMenuActions))
+	for i, action := range advancedMenuActions {
+		advancedMenuActionLabels[i] = action.label
+	}
+
 	app.menuService.RegisterMainMenu(mainMenuActionLabels)
+	app.menuService.RegisterAdvancedMenu(advancedMenuActionLabels)
 	app.menuService.RegisterFormatterMenu(&FormatterMenu{app.formatterConfig, 0})
 	app.menuService.RegisterIssueSearchMenu(app)
 	app.menuService.RegisterIssueLinkTypeMenu(app)
@@ -85,7 +94,8 @@ var (
 	actionBaseService  *ActionBaseService
 	workbenchService   WorkbenchService
 
-	mainMenuActions []*MenuAction
+	mainMenuActions     []*MenuAction
+	advancedMenuActions []*MenuAction
 )
 
 type MenuAction struct {
@@ -94,6 +104,38 @@ type MenuAction struct {
 }
 
 func MainMenuActions(app *App, svc WorkbenchService, menuService *MenuService, w *Workbench) []*MenuAction {
+	return []*MenuAction{
+		&MenuAction{
+			action: func() error { os.Exit(0); return nil },
+			label:  "Quit",
+		},
+		&MenuAction{
+			action: func() error { return svc.AddIssuesInteractive(w) },
+			label:  "Seach",
+		},
+		&MenuAction{
+			action: func() error {
+				return svc.SelectActionInteractive(w)
+			},
+			label: "Set action",
+		},
+		&MenuAction{
+			action: func() error {
+				if w.actionId == 0 {
+					log.Panicln("No action selected")
+				}
+				w.SelectAll()
+				w.AssignSelected()
+				err := svc.Execute(w, false)
+				w.ClearSelection()
+				return err
+			},
+			label: "Do it",
+		},
+	}
+}
+
+func AdvancedMenuActions(app *App, svc WorkbenchService, menuService *MenuService, w *Workbench) []*MenuAction {
 	return []*MenuAction{
 		&MenuAction{
 			action: func() error { os.Exit(0); return nil },

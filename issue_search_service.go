@@ -2,6 +2,7 @@ package cli
 
 import (
 	"log"
+	"strings"
 
 	"github.com/andygrunwald/go-jira"
 	"github.com/manifoldco/promptui"
@@ -27,6 +28,8 @@ func (s *IssueSearchService) SearchInteractive(opts SelectOptions, useQueryRunne
 	if !prs {
 		log.Fatalf("JQL key %s not present in map %s", jqlKey, config.JQLs)
 	}
+
+	jql = strings.ReplaceAll(jql, "\n", " ")
 
 	s.searcher.SetSearchQuery(jql)
 
