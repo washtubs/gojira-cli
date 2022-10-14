@@ -1,9 +1,7 @@
 package cli
 
 import (
-	"crypto/tls"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -24,38 +22,17 @@ func (j *JiraClientFactory) GetClient() (*jira.Client, error) {
 		return j.client, nil
 	}
 	config := j.config.Client
-	crt, err := tls.LoadX509KeyPair(config.Certfile, config.Keyfile)
+
+	token, err := os.ReadFile(os.ExpandEnv(j.config.Client.TokenFile))
 	if err != nil {
-		log.Println("Error loading X509 pair for cert " + config.Certfile +
-			" and key file " + config.Keyfile + " : " + err.Error())
-		return nil, err
+		log.Fatal(err)
 	}
 
-	passfile, err := os.Open(config.Passfile)
-	if err != nil {
-		log.Println("Failed to open " + config.Passfile)
-		return nil, err
+	tp := jira.PATAuthTransport{
+		Token:     strings.TrimSpace(string(token)),
+		Transport: http.DefaultTransport,
 	}
-	defer passfile.Close()
-
-	bs, err := ioutil.ReadAll(passfile)
-	if err != nil {
-		return nil, err
-	}
-	password := strings.TrimSpace(string(bs))
-
-	tlsConfig := &tls.Config{
-		Certificates:  []tls.Certificate{crt},
-		Renegotiation: tls.RenegotiateOnceAsClient,
-	}
-	tr := &http.Transport{
-		TLSClientConfig: tlsConfig,
-	}
-	cl := &http.Client{
-		Transport: tr,
-	}
-	j.client, err = jira.NewClient(cl, config.Url)
-	j.client.Authentication.SetBasicAuth(config.Username, password)
+	j.client, err = jira.NewClient(tp.Client(), config.Url)
 
 	return j.client, err
 }

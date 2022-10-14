@@ -43,11 +43,10 @@ type Config struct {
 }
 
 type JiraClientConfig struct {
-	Url      string `yaml:"url"`
-	Keyfile  string `yaml:"keyfile"`
-	Certfile string `yaml:"certfile"`
-	Username string `yaml:"username"`
-	Passfile string `yaml:"passfile"`
+	Url       string `yaml:"url"`
+	TokenFile string `yaml:"tokenFile"`
+	Username  string `yaml:"username"`
+	Passfile  string `yaml:"passfile"`
 }
 
 type ConfigLoader interface {

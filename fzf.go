@@ -119,7 +119,9 @@ func fzfConvertOutput(out string) []int {
 		}
 		idx, err := strconv.Atoi(strings.Fields(result)[0])
 		if err != nil {
-			panic(err)
+			// I have randomly seen this panic trying to convert "<nil>" to an integer.
+			// Need more info to understand the cause.
+			panic(errors.Wrapf(err, "Failed to convert field 0 to integer. Entire result = [%s].", result))
 		}
 
 		indexes = append(indexes, idx)
